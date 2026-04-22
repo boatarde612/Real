@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DELEGA INJECTOR V1</title>
+    <style>
+        :root { --p: #ff0000; --bg: #000; --text: #fff; --glow: 0 0 15px rgba(255, 0, 0, 0.7); }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: #000; color: #fff; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* --- TELA DE CARREGAMENTO (SPLASH) --- */
+        #splash { position: fixed; inset: 0; background: radial-gradient(circle, #1a0000 0%, #000 100%); z-index: 10000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .bar { width: 70%; height: 6px; background: #222; border-radius: 10px; overflow: hidden; margin-top: 20px; }
+        .fill { width: 0%; height: 100%; background: var(--p); box-shadow: var(--glow); transition: width 0.1s linear; }
+
+        /* --- NAVEGAÇÃO --- */
+        .nav { display: flex; background: #0a0a0a; border-bottom: 2px solid var(--p); }
+        .tab { flex: 1; padding: 15px; border: none; background: none; color: #444; font-weight: bold; font-size: 11px; text-transform: uppercase; }
+        .tab.active { color: var(--p); background: rgba(255,0,0,0.1); }
+
+        /* --- CONTEÚDO --- */
+        .content { flex: 1; overflow-y: auto; background: #050505; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .row { display: flex; justify-content: space-between; align-items: center; padding: 18px 25px; border-bottom: 1px solid #111; }
+        .row span { font-size: 12px; font-weight: bold; color: #bbb; }
+
+        /* Switch */
+        .switch { position: relative; width: 44px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; inset: 0; background: #222; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 4px; bottom: 4px; background: #fff; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background: var(--p); box-shadow: var(--glow); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* --- RODAPÉ FIXO --- */
+        .footer { background: #000; border-top: 1px solid #222; }
+        #console { height: 90px; padding: 12px; font-size: 10px; color: #00ff00; overflow-y: auto; font-family: monospace; border-left: 4px solid var(--p); }
+        .btn { width: 100%; padding: 22px; background: var(--p); color: #fff; border: none; font-weight: 900; font-size: 16px; text-transform: uppercase; letter-spacing: 3px; cursor: pointer; }
+
+        /* --- TELAS OVERLAY --- */
+        .overlay { position: fixed; inset: 0; background: #000; z-index: 9000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px; text-align: center; }
+        input { width: 100%; padding: 18px; margin: 8px 0; background: #0a0a0a; border: 1px solid #222; color: #fff; text-align: center; border-radius: 8px; font-size: 16px; }
+        .hidden { display: none !important; }
+        #gg { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 20000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+    </style>
+</head>
+<body>
+
+    <div id="splash">
+        <h1 style="color:red; font-size: 45px; letter-spacing: 10px; text-shadow: var(--glow);">DELEGA</h1>
+        <div class="bar"><div id="fill" class="fill"></div></div>
+    </div>
+
+    <div id="login-screen" class="overlay hidden">
+        <h2 style="color:red; margin-bottom: 25px; font-size: 45px;">DELEGA</h2>
+        <div id="err" style="color:red; font-size: 12px; margin-bottom: 10px; font-weight: bold;"></div>
+        <input type="text" id="user" placeholder="USUÁRIO">
+        <input type="password" id="pass" placeholder="SENHA">
+        <label style="color:#333; font-size: 12px; margin-top: 10px;"><input type="checkbox" id="rem"> LEMBRAR DADOS</label>
+        <button onclick="valida()" class="btn" style="margin-top: 20px; border-radius: 10px;">LOGAR NO SISTEMA</button>
+    </div>
+
+    <div id="sub-screen" class="overlay hidden">
+        <h2 style="color:#fff;">INSCREVA-SE</h2>
+        <p style="color:#555; margin: 20px 0;">Visite o canal para liberar o acesso ao painel.</p>
+        <button onclick="irYT()" style="background:#fff; color:#000; font-weight:900; padding:18px; width:100%; border-radius:10px; border:none;">INSCREVA-SE</button>
+        <button onclick="checar()" style="margin-top:30px; background:none; border:none; color:red; font-weight:bold;">[ JÁ SOU INSCRITO ]</button>
+    </div>
+
+    <div id="warn-screen" class="overlay hidden">
+        <div style="border: 2px solid red; padding: 25px; border-radius: 15px; background: rgba(255,0,0,0.05);">
+            <p style="color:red; font-weight:bold; font-size: 14px; text-transform: uppercase;">MOVA O ARQUIVO PARA A PASTA "DATA" DO JOGO PARA FUNCIONAR!</p>
+        </div>
+        <button onclick="go()" class="btn" style="margin-top: 30px; border-radius: 10px;">PROSSEGUIR</button>
+    </div>
+
+    <div id="app" class="hidden" style="height:100%; display:flex; flex-direction:column;">
+        <div class="nav">
+            <button class="tab active" onclick="setTab('mira', this)">🎯 MIRA</button>
+            <button class="tab" onclick="setTab('boost', this)">⚡ BOOST</button>
+            <button class="tab" onclick="setTab('info', this)">👤 INFO</button>
+        </div>
+        <div class="content">
+            <div id="mira" class="page active">
+                <div class="row"><span>AIMLOCK HEAD (PRO)</span> <label class="switch"><input type="checkbox" onchange="log('AIMLOCK')"><span class="slider"></span></label></div>
+                <div class="row"><span>HOLOGRAMA V1</span> <label class="switch"><input type="checkbox" onchange="log('HOLOGRAM')"><span class="slider"></span></label></div>
+                <div class="row"><span>NORECOIL STATIC</span> <label class="switch"><input type="checkbox" onchange="log('RECOIL')"><span class="slider"></span></label></div>
+                <div class="row"><span>AUXÍLIO MIRA 80%</span> <label class="switch"><input type="checkbox" onchange="log('AUX')"><span class="slider"></span></label></div>
+            </div>
+            <div id="boost" class="page">
+                <div class="row"><span>UNLOCK 90 FPS</span> <label class="switch"><input type="checkbox" onchange="log('FPS')"><span class="slider"></span></label></div>
+                <div class="row"><span>OTIMIZAR PING</span> <label class="switch"><input type="checkbox" onchange="log('PING')"><span class="slider"></span></label></div>
+                <div class="row"><span>ANTI-BAN DATA</span> <label class="switch"><input type="checkbox" onchange="log('ANTIBAN')"><span class="slider"></span></label></div>
+            </div>
+            <div id="info" class="page">
+                <div style="text-align:center; padding:40px;">
+                    <h2 style="color:red;">DELEGA V1</h2>
+                    <p style="color:#333; margin:15px 0;">BY @DELEGAXITERS</p>
+                    <button onclick="irYT()" style="background:#222; color:#fff; border:none; padding:15px; width:100%; border-radius:10px;">CANAL YOUTUBE</button>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <div id="console">> READY FOR INJECTION...</div>
+            <button class="btn" onclick="start()">ENTRAR NO FREE FIRE</button>
+        </div>
+    </div>
+
+    <div id="gg" class="hidden">
+        <h1 style="color:red; text-shadow: 0 0 15px red; font-size: 40px;">BOM JOGO!!</h1>
+        <p id="st" style="color:#0f0; margin-top: 15px; font-family: monospace; font-weight: bold;">SINCRONIZANDO...</p>
+    </div>
+
+    <script>
+        // Splash Loader (3 seg)
+        let c=0; let t=setInterval(()=>{ c++; document.getElementById('fill').style.width=c+"%"; if(c>=100){ clearInterval(t); document.getElementById('splash').classList.add('hidden'); document.getElementById('login-screen').classList.remove('hidden'); } }, 30);
+        
+        // Auto Login
+        window.onload = () => { if(localStorage.getItem('save')==='1'){ document.getElementById('user').value=localStorage.getItem('u'); document.getElementById('pass').value=localStorage.getItem('p'); document.getElementById('rem').checked=true; } };
+
+        function valida(){
+            const u=document.getElementById('user').value; const p=document.getElementById('pass').value;
+            if(u!=="DELEGA"){ document.getElementById('err').innerText="ERRO: USUÁRIO INVÁLIDO!"; return; }
+            if(p!=="200"){ document.getElementById('err').innerText="ERRO: SENHA INCORRETA!"; return; }
+            if(document.getElementById('rem').checked){ localStorage.setItem('u',u); localStorage.setItem('p',p); localStorage.setItem('save','1'); }
+            document.getElementById('login-screen').classList.add('hidden'); document.getElementById('sub-screen').classList.remove('hidden');
+        }
+
+        function irYT(){ localStorage.setItem('yt','1'); window.location.href="https://youtube.com/@delegaytoficial?si=bfKXgYC_Es-BY__T"; }
+        function checar(){ if(localStorage.getItem('yt')){ document.getElementById('sub-screen').classList.add('hidden'); document.getElementById('warn-screen').classList.remove('hidden'); } else alert("Acesse o canal primeiro!"); }
+        function go(){ document.getElementById('warn-screen').classList.add('hidden'); document.getElementById('app').classList.remove('hidden'); }
+        function setTab(id, b){ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.getElementById(id).classList.add('active'); b.classList.add('active'); }
+
+        function log(m){ 
+            const c=document.getElementById('console'); let i=0; 
+            const l=[`> Find package: com.dts`, `> Injecting: ${m}`, `> Offset success!`, `> Status: ACTIVE` ]; 
+            let iv=setInterval(()=>{ if(i<l.length){ c.innerHTML+=`<br>${l[i++]}`; c.scrollTop=c.scrollHeight; }else clearInterval(iv); }, 1400); 
+        }
+
+        // --- FUNÇÃO QUE FALA COM O KODULAR ---
+        function start() {
+            document.getElementById('gg').classList.remove('hidden');
+            setTimeout(()=> document.getElementById('st').innerText="DADOS INJETADOS!", 1500);
+            setTimeout(()=> document.getElementById('st').innerText="LANÇANDO FREE FIRE...", 2500);
+            setTimeout(()=> {
+                // SINAL PARA O BLOCO DO KODULAR (abrir_ff)
+                if(window.AppInventor) { 
+                    window.AppInventor.setWebViewString("abrir_ff"); 
+                }
+                setTimeout(()=> document.getElementById('gg').classList.add('hidden'), 2000);
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
